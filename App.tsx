@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, Sparkles, AlertCircle } from 'lucide-react';
 import ConfigPanel from './components/ConfigPanel';
 import AdvancedSettings from './components/AdvancedSettings';
@@ -8,10 +8,23 @@ import { sendChatRequest } from './services/api';
 import { AppConfig, RequestStatus, ChatCompletionParams } from './types';
 
 function App() {
-  const [config, setConfig] = useState<AppConfig>({
-    apiKey: '',
-    model: '',
+  // Initialize config from localStorage or defaults
+  const [config, setConfig] = useState<AppConfig>(() => {
+    const savedConfig = localStorage.getItem('llm_verifier_config');
+    if (savedConfig) {
+      try {
+        return JSON.parse(savedConfig);
+      } catch (e) {
+        console.error("Failed to parse saved config", e);
+      }
+    }
+    return { apiKey: '', model: '' };
   });
+
+  // Persist config to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('llm_verifier_config', JSON.stringify(config));
+  }, [config]);
 
   // Collapse States
   const [configExpanded, setConfigExpanded] = useState(true);
