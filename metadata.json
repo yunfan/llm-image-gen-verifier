@@ -1,0 +1,5 @@
+{
+  "name": "LLM Image Gen Verifier",
+  "description": "A tool to verify image generation capabilities of OpenAI-compatible LLM endpoints by separating text and image outputs.",
+  "requestFramePermissions": []
+}
