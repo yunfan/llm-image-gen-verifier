@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Loader2, Timer } from 'lucide-react';
 
@@ -30,13 +31,13 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ isVisible }) => 
           <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full"></div>
           <Loader2 className="w-12 h-12 text-cyan-400 animate-spin relative z-10" />
         </div>
-        <h3 className="text-xl font-semibold text-white">Generating Response</h3>
+        <h3 className="text-xl font-semibold text-white">正在生成响应</h3>
         <div className="flex items-center gap-2 text-slate-400 font-mono text-lg bg-slate-950 px-4 py-2 rounded-lg border border-slate-800 shadow-inner">
           <Timer size={20} className="text-cyan-500" />
           <span className="tabular-nums">{seconds.toFixed(1)}s</span>
         </div>
         <p className="text-sm text-slate-500 text-center animate-pulse">
-          Sending request to API...
+          正在向接口发送请求...
         </p>
       </div>
     </div>

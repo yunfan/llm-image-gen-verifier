@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { AppConfig } from '../types';
+import { AppConfig, AppMode } from '../types';
 import { Settings, Key, Box, ChevronDown, ChevronUp, Check } from 'lucide-react';
 
 interface ConfigPanelProps {
@@ -7,15 +8,23 @@ interface ConfigPanelProps {
   setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
   isExpanded: boolean;
   onToggle: () => void;
+  currentMode: AppMode;
 }
 
-const SUGGESTED_MODELS = [
+export const IMAGE_MODELS = [
   'gemini-3-pro-image-preview',
   'nano-banana-2-4k',
   'claude-sonnet-4-5-20250929'
 ];
 
-const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded, onToggle }) => {
+export const VIDEO_MODELS = [
+  'kling-video-v2.5-turbo',
+  'kling-v1',
+  'kling-v1-5',
+  'kling-v1-6'
+];
+
+const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded, onToggle, currentMode }) => {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +53,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
     };
   }, []);
 
+  const suggestedModels = currentMode === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
+
   return (
     <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl shadow-xl overflow-visible transition-all duration-300">
       <button 
@@ -51,9 +62,9 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
         onClick={onToggle}
         className="w-full flex items-center justify-between p-6 hover:bg-slate-800/30 transition-colors text-left"
       >
-        <div className="flex items-center gap-2 text-cyan-400 font-semibold text-lg">
+        <div className={`flex items-center gap-2 font-semibold text-lg ${currentMode === 'image' ? 'text-cyan-400' : 'text-violet-400'}`}>
           <Settings size={20} />
-          <h2>API Configuration</h2>
+          <h2>接口配置</h2>
         </div>
         {isExpanded ? <ChevronUp size={20} className="text-slate-500" /> : <ChevronDown size={20} className="text-slate-500" />}
       </button>
@@ -83,7 +94,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
 
             <div className="space-y-2" ref={dropdownRef}>
               <label htmlFor="model" className="block text-sm font-medium text-slate-400">
-                Model Name
+                模型名称
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -97,7 +108,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
                   value={config.model}
                   onChange={handleChange}
                   onFocus={() => setShowModelDropdown(true)}
-                  placeholder="Select or type a model..."
+                  placeholder="选择或输入模型..."
                   autoComplete="off"
                   className="w-full pl-10 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors text-slate-200 placeholder-slate-600"
                 />
@@ -112,7 +123,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
                 {/* Dropdown Menu */}
                 {showModelDropdown && (
                   <div className="absolute z-50 w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl max-h-60 overflow-y-auto custom-scrollbar ring-1 ring-black/20">
-                    {SUGGESTED_MODELS.map((m) => (
+                    {suggestedModels.map((m) => (
                       <button
                         key={m}
                         type="button"
@@ -128,9 +139,17 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
               </div>
             </div>
           </div>
-          <p className="mt-6 text-xs text-slate-500 border-t border-slate-800/50 pt-4">
-            Endpoint: <span className="font-mono text-slate-400">https://api.bltcy.ai/v1/images/generations</span>
-          </p>
+          <div className="mt-6 space-y-2 text-xs text-slate-500 border-t border-slate-800/50 pt-4">
+            {currentMode === 'image' ? (
+              <p>
+                <span className="font-semibold text-cyan-500/80">图片接口:</span> <span className="font-mono text-slate-400 select-all">https://api.bltcy.ai/v1/images/generations</span>
+              </p>
+            ) : (
+              <p>
+                <span className="font-semibold text-violet-500/80">视频接口:</span> <span className="font-mono text-slate-400 select-all">https://api.bltcy.ai/kling/v1/videos/image2video</span>
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

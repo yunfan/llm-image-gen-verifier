@@ -1,7 +1,7 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ImageGenerationParams } from '../types';
-import { LayoutTemplate, Maximize, Image as ImageIcon, UploadCloud, X, Loader2, AlertTriangle, Plus } from 'lucide-react';
+import { LayoutTemplate, Maximize, Image as ImageIcon, UploadCloud, X, Loader2, AlertTriangle, Plus, ChevronDown, Check } from 'lucide-react';
 import { uploadImageFile } from '../services/api';
 
 interface AdvancedSettingsProps {
@@ -14,10 +14,32 @@ const ASPECT_RATIOS = [
   '21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21'
 ];
 
+const RESOLUTION_PRESETS = [
+  { label: '1k (1920x1080)', value: '1920x1080' },
+  { label: '2k (2560x1440)', value: '2560x1440' },
+  { label: '4k (3840x2160)', value: '3840x2160' },
+  { label: 'Square (1024x1024)', value: '1024x1024' },
+];
+
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, setParams }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sizeDropdownRef = useRef<HTMLDivElement>(null);
+  const sizeInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle clicking outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(event.target as Node)) {
+        setShowSizeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleRatioSelect = (ratio: string) => {
     setParams(prev => ({ ...prev, aspect_ratio: ratio }));
@@ -27,12 +49,17 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
     setParams(prev => ({ ...prev, size: e.target.value }));
   };
 
+  const handleSizeSelect = (value: string) => {
+    setParams(prev => ({ ...prev, size: value }));
+    setShowSizeDropdown(false);
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!apiKey) {
-      setUploadError("Please enter your API Key in the configuration panel above to upload files.");
+      setUploadError("请先在上方的配置面板中输入 API Key 才能上传文件。");
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -47,7 +74,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
         image: [...(prev.image || []), uploadedUrl]
       }));
     } catch (err: any) {
-      setUploadError(err.message || "Upload failed");
+      setUploadError(err.message || "上传失败");
     } finally {
       setIsUploading(false);
       // Clear input so user can retry same file or add new one
@@ -71,7 +98,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
       {/* Header */}
       <div className="flex items-center gap-2 text-cyan-400 font-medium pb-2 border-b border-slate-800/50">
         <LayoutTemplate size={18} />
-        <h3>Image Parameters</h3>
+        <h3>生图参数</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -82,8 +109,8 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
           {/* Aspect Ratio Grid */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-slate-400 flex items-center justify-between">
-              <span>Aspect Ratio</span>
-              <span className="text-slate-600 font-mono">{params.aspect_ratio || 'Not set'}</span>
+              <span>画面比例</span>
+              <span className="text-slate-600 font-mono">{params.aspect_ratio || '未设置'}</span>
             </label>
             <div className="grid grid-cols-5 sm:grid-cols-5 gap-2">
               {ASPECT_RATIOS.map((ratio) => (
@@ -105,20 +132,51 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
             </div>
           </div>
 
-          {/* Size Input */}
-          <div className="space-y-2">
+          {/* Size Input (Combobox) */}
+          <div className="space-y-2" ref={sizeDropdownRef}>
             <label htmlFor="size" className="text-xs font-medium text-slate-400 flex items-center gap-2">
               <Maximize size={12} />
-              <span>Size (Optional)</span>
+              <span>分辨率 (可选)</span>
             </label>
-            <input
-              type="text"
-              id="size"
-              value={params.size || ''}
-              onChange={handleSizeChange}
-              placeholder="e.g. 1024x1024"
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200 placeholder-slate-700 transition-colors"
-            />
+            <div className="relative">
+              <input
+                ref={sizeInputRef}
+                type="text"
+                id="size"
+                value={params.size || ''}
+                onChange={handleSizeChange}
+                onFocus={() => setShowSizeDropdown(true)}
+                placeholder="例如 1024x1024 或选择预设"
+                autoComplete="off"
+                className="w-full pl-3 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200 placeholder-slate-700 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSizeDropdown(!showSizeDropdown)}
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-cyan-400 transition-colors"
+              >
+                <ChevronDown size={14} className={`transform transition-transform ${showSizeDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {showSizeDropdown && (
+                <div className="absolute z-20 w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto custom-scrollbar ring-1 ring-black/20">
+                  {RESOLUTION_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => handleSizeSelect(preset.value)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-cyan-500/10 hover:text-cyan-300 flex items-center justify-between group transition-colors border-b border-slate-800/50 last:border-0"
+                    >
+                      <span className={params.size === preset.value ? 'text-cyan-400 font-medium' : 'text-slate-300'}>
+                        {preset.label}
+                      </span>
+                      {params.size === preset.value && <Check size={12} className="text-cyan-400" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -127,13 +185,13 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
               <ImageIcon size={12} />
-              <span>Reference Images (Upload)</span>
+              <span>参考图 (上传)</span>
             </label>
             {/* Show error small if exists */}
             {uploadError && (
               <span className="text-[10px] text-red-400 flex items-center gap-1">
                 <AlertTriangle size={10} />
-                Failed
+                失败
               </span>
             )}
           </div>
@@ -182,14 +240,14 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, set
                   {isUploading ? (
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 size={24} className="text-cyan-500 animate-spin" />
-                      <span className="text-xs text-slate-400">Uploading...</span>
+                      <span className="text-xs text-slate-400">上传中...</span>
                     </div>
                   ) : (
                     <>
                       <div className="p-2 bg-slate-800/50 rounded-full mb-2 group-hover:scale-110 transition-transform">
                         <UploadCloud size={20} className={uploadError ? 'text-red-400' : 'text-slate-400'} />
                       </div>
-                      <span className="text-xs text-slate-400">Click to upload reference image</span>
+                      <span className="text-xs text-slate-400">点击上传参考图</span>
                     </>
                   )}
                   <input 

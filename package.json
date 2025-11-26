@@ -1,5 +1,5 @@
 {
-  "name": "llm-image-gen-verifier",
+  "name": "llm-生图/视频验证助手",
   "private": true,
   "version": "0.0.0",
   "type": "module",

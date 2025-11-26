@@ -1,5 +1,5 @@
 {
-  "name": "LLM Image Gen Verifier",
-  "description": "A tool to verify image generation capabilities of OpenAI-compatible LLM endpoints by separating text and image outputs.",
+  "name": "LLM 生图/视频验证助手",
+  "description": "一个用于验证 OpenAI 兼容接口生图/生视频能力的工具，支持分离显示文本与媒体输出。",
   "requestFramePermissions": []
 }
