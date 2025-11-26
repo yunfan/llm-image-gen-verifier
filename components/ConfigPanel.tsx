@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppConfig } from '../types';
-import { Settings, Key, Box, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Key, Box, ChevronDown, ChevronUp, Check } from 'lucide-react';
 
 interface ConfigPanelProps {
   config: AppConfig;
@@ -12,10 +12,14 @@ interface ConfigPanelProps {
 const SUGGESTED_MODELS = [
   'gemini-3-pro-image-preview',
   'nano-banana-2-4k',
-  'kling-video-v2-5-turbo'
+  'claude-sonnet-4-5-20250929'
 ];
 
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded, onToggle }) => {
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setConfig((prev) => ({ ...prev, [name]: value }));
@@ -23,10 +27,25 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
 
   const handleModelSelect = (modelName: string) => {
     setConfig((prev) => ({ ...prev, model: modelName }));
+    setShowModelDropdown(false);
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowModelDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl shadow-xl overflow-hidden transition-all duration-300">
+    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl shadow-xl overflow-visible transition-all duration-300">
       <button 
         type="button"
         onClick={onToggle}
@@ -62,7 +81,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2" ref={dropdownRef}>
               <label htmlFor="model" className="block text-sm font-medium text-slate-400">
                 Model Name
               </label>
@@ -71,37 +90,46 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
                   <Box size={16} className="text-slate-500" />
                 </div>
                 <input
+                  ref={inputRef}
                   type="text"
                   id="model"
                   name="model"
                   value={config.model}
                   onChange={handleChange}
-                  placeholder="Type or select a model below..."
-                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors text-slate-200 placeholder-slate-600"
+                  onFocus={() => setShowModelDropdown(true)}
+                  placeholder="Select or type a model..."
+                  autoComplete="off"
+                  className="w-full pl-10 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors text-slate-200 placeholder-slate-600"
                 />
-              </div>
-              
-              {/* Quick Select Model Chips */}
-              <div className="flex flex-wrap gap-2 pt-1">
-                {SUGGESTED_MODELS.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => handleModelSelect(m)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-200 ${
-                      config.model === m
-                        ? 'bg-cyan-900/40 border-cyan-500 text-cyan-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowModelDropdown(!showModelDropdown)}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-cyan-400 transition-colors"
+                >
+                  <ChevronDown size={16} className={`transform transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showModelDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl max-h-60 overflow-y-auto custom-scrollbar ring-1 ring-black/20">
+                    {SUGGESTED_MODELS.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => handleModelSelect(m)}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-cyan-500/10 hover:text-cyan-300 flex items-center justify-between group transition-colors border-b border-slate-800/50 last:border-0"
+                      >
+                        <span className={config.model === m ? 'text-cyan-400 font-medium' : 'text-slate-300'}>{m}</span>
+                        {config.model === m && <Check size={14} className="text-cyan-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
           <p className="mt-6 text-xs text-slate-500 border-t border-slate-800/50 pt-4">
-            Endpoint: <span className="font-mono text-slate-400">https://api.bltcy.ai/v1/chat/completions</span>
+            Endpoint: <span className="font-mono text-slate-400">https://api.bltcy.ai/v1/images/generations</span>
           </p>
         </div>
       )}

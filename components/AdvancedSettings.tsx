@@ -1,262 +1,218 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Sliders, AlertTriangle } from 'lucide-react';
-import { ChatCompletionParams } from '../types';
+
+import React, { useState, useRef } from 'react';
+import { ImageGenerationParams } from '../types';
+import { LayoutTemplate, Maximize, Image as ImageIcon, UploadCloud, X, Loader2, AlertTriangle, Plus } from 'lucide-react';
+import { uploadImageFile } from '../services/api';
 
 interface AdvancedSettingsProps {
-  params: ChatCompletionParams;
-  setParams: React.Dispatch<React.SetStateAction<ChatCompletionParams>>;
-  isOpen: boolean;
-  onToggle: () => void;
+  apiKey: string;
+  params: ImageGenerationParams;
+  setParams: React.Dispatch<React.SetStateAction<ImageGenerationParams>>;
 }
 
-// Helper component for Slider + Input synchronization
-const SliderInput: React.FC<{
-  label: string;
-  name: keyof ChatCompletionParams;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  desc?: string;
-  onChange: (name: string, value: number) => void;
-}> = ({ label, name, value, min, max, step, desc, onChange }) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVal = parseFloat(e.target.value);
-    if (!isNaN(newVal)) {
-      onChange(name as string, newVal);
-    }
+const ASPECT_RATIOS = [
+  '21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21'
+];
+
+const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ apiKey, params, setParams }) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRatioSelect = (ratio: string) => {
+    setParams(prev => ({ ...prev, aspect_ratio: ratio }));
   };
 
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <label htmlFor={name} className="text-xs font-medium text-slate-400">
-          {label}
-        </label>
-        {desc && <span className="text-[10px] text-slate-600 hidden sm:inline-block">{desc}</span>}
-      </div>
-      <div className="flex items-center gap-4">
-        <input
-          type="range"
-          id={`${name}-slider`}
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={handleChange}
-          className="flex-grow h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
-        />
-        <div className="relative w-20 shrink-0">
-          <input
-            type="number"
-            id={name}
-            name={name}
-            value={value}
-            min={min}
-            max={max}
-            step={step}
-            onChange={handleChange}
-            className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-right text-sm font-mono focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200"
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ params, setParams, isOpen, onToggle }) => {
-  const [logitBiasText, setLogitBiasText] = useState('');
-  const [jsonError, setJsonError] = useState<string | null>(null);
-
-  // Initialize local text state from props
-  useEffect(() => {
-    if (params.logit_bias) {
-      setLogitBiasText(JSON.stringify(params.logit_bias, null, 2));
-    } else {
-      setLogitBiasText('');
-    }
-  }, [params.logit_bias]);
-
-  const handleSliderChange = (name: string, value: number) => {
-    setParams((prev) => ({ ...prev, [name]: value }));
+  const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setParams(prev => ({ ...prev, size: e.target.value }));
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    let newValue: string | number = value;
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (type === 'number') {
-      newValue = value === '' ? '' : parseFloat(value);
-    }
-    setParams((prev) => ({ ...prev, [name]: newValue }));
-  };
-
-  const handleLogitBiasChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    setLogitBiasText(text);
-    
-    if (text.trim() === '') {
-      setJsonError(null);
-      setParams(prev => {
-        const { logit_bias, ...rest } = prev;
-        return rest;
-      });
+    if (!apiKey) {
+      setUploadError("Please enter your API Key in the configuration panel above to upload files.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
+    setIsUploading(true);
+    setUploadError(null);
+
     try {
-      const parsed = JSON.parse(text);
-      if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error('Must be a JSON object');
-      }
-      setJsonError(null);
-      setParams(prev => ({ ...prev, logit_bias: parsed }));
-    } catch (err) {
-      setJsonError('Invalid JSON format');
+      const uploadedUrl = await uploadImageFile(apiKey, file);
+      setParams(prev => ({
+        ...prev,
+        image: [...(prev.image || []), uploadedUrl]
+      }));
+    } catch (err: any) {
+      setUploadError(err.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
+      // Clear input so user can retry same file or add new one
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+  const removeImage = (indexToRemove: number) => {
+    setParams(prev => ({ 
+      ...prev, 
+      image: (prev.image || []).filter((_, index) => index !== indexToRemove) 
+    }));
+    setUploadError(null);
+  };
+
+  const currentImages = params.image || [];
+
   return (
-    <div className="bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden mb-6 transition-all duration-300">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-6 py-3 bg-slate-900/50 hover:bg-slate-800/50 text-slate-300 transition-colors"
-      >
-        <div className="flex items-center gap-2 font-medium text-sm">
-          <Sliders size={16} className="text-cyan-400" />
-          <span>Advanced Parameters</span>
-        </div>
-        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
+    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 space-y-6 animate-in fade-in duration-500">
+      
+      {/* Header */}
+      <div className="flex items-center gap-2 text-cyan-400 font-medium pb-2 border-b border-slate-800/50">
+        <LayoutTemplate size={18} />
+        <h3>Image Parameters</h3>
+      </div>
 
-      {isOpen && (
-        <div className="p-6 space-y-8 bg-slate-950/30 border-t border-slate-800 animate-in fade-in slide-in-from-top-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* Left Column: Aspect Ratio & Size */}
+        <div className="space-y-6">
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Sliders Section */}
-            <SliderInput 
-              label="Temperature" 
-              name="temperature" 
-              value={params.temperature ?? 0.7} 
-              min={0} max={2} step={0.1}
-              desc="Randomness (0-2)"
-              onChange={handleSliderChange} 
-            />
-
-            <SliderInput 
-              label="Top P" 
-              name="top_p" 
-              value={params.top_p ?? 1} 
-              min={0} max={1} step={0.05}
-              desc="Nucleus sampling (0-1)"
-              onChange={handleSliderChange} 
-            />
-
-            <SliderInput 
-              label="Presence Penalty" 
-              name="presence_penalty" 
-              value={params.presence_penalty ?? 0} 
-              min={-2} max={2} step={0.1}
-              desc="New topic probability (-2 to 2)"
-              onChange={handleSliderChange} 
-            />
-
-            <SliderInput 
-              label="Frequency Penalty" 
-              name="frequency_penalty" 
-              value={params.frequency_penalty ?? 0} 
-              min={-2} max={2} step={0.1}
-              desc="Repetition penalty (-2 to 2)"
-              onChange={handleSliderChange} 
-            />
-          </div>
-
-          <div className="h-px bg-slate-800/50 w-full" />
-
-          {/* Standard Inputs Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <label htmlFor="max_tokens" className="block text-xs font-medium text-slate-400">
-                Max Tokens
-              </label>
-              <input
-                type="number"
-                id="max_tokens"
-                name="max_tokens"
-                min="1"
-                value={params.max_tokens}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200 placeholder-slate-600 transition-colors"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="n" className="block text-xs font-medium text-slate-400">
-                N (Choices)
-              </label>
-              <input
-                type="number"
-                id="n"
-                name="n"
-                min="1"
-                max="10"
-                value={params.n}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200 placeholder-slate-600 transition-colors"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="user" className="block text-xs font-medium text-slate-400">
-                User ID
-              </label>
-              <input
-                type="text"
-                id="user"
-                name="user"
-                value={params.user}
-                onChange={handleInputChange}
-                placeholder="e.g. user-123"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200 placeholder-slate-600 transition-colors"
-              />
-            </div>
-          </div>
-
-          <div className="h-px bg-slate-800/50 w-full" />
-
-          {/* Logit Bias JSON Editor */}
+          {/* Aspect Ratio Grid */}
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label htmlFor="logit_bias" className="block text-xs font-medium text-slate-400">
-                Logit Bias (JSON)
-              </label>
-              {jsonError && (
-                 <div className="flex items-center gap-1 text-red-400 text-[10px]">
-                   <AlertTriangle size={12} />
-                   <span>{jsonError}</span>
-                 </div>
-              )}
+            <label className="text-xs font-medium text-slate-400 flex items-center justify-between">
+              <span>Aspect Ratio</span>
+              <span className="text-slate-600 font-mono">{params.aspect_ratio || 'Not set'}</span>
+            </label>
+            <div className="grid grid-cols-5 sm:grid-cols-5 gap-2">
+              {ASPECT_RATIOS.map((ratio) => (
+                <button
+                  key={ratio}
+                  type="button"
+                  onClick={() => handleRatioSelect(ratio)}
+                  className={`
+                    text-xs py-1.5 px-1 rounded-md border transition-all duration-200
+                    ${params.aspect_ratio === ratio 
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]' 
+                      : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                    }
+                  `}
+                >
+                  {ratio}
+                </button>
+              ))}
             </div>
-            <textarea
-              id="logit_bias"
-              rows={3}
-              value={logitBiasText}
-              onChange={handleLogitBiasChange}
-              placeholder='{"5025": -100, "5026": 5}'
-              className={`w-full px-3 py-2 bg-slate-900 border rounded-lg text-sm font-mono focus:ring-1 outline-none text-slate-200 placeholder-slate-600 transition-colors ${
-                jsonError 
-                  ? 'border-red-900/50 focus:border-red-500 focus:ring-red-500' 
-                  : 'border-slate-700 focus:ring-cyan-500 focus:border-cyan-500'
-              }`}
-            />
-            <p className="text-[10px] text-slate-500">
-              Map token IDs to bias values (-100 to 100).
-            </p>
           </div>
 
+          {/* Size Input */}
+          <div className="space-y-2">
+            <label htmlFor="size" className="text-xs font-medium text-slate-400 flex items-center gap-2">
+              <Maximize size={12} />
+              <span>Size (Optional)</span>
+            </label>
+            <input
+              type="text"
+              id="size"
+              value={params.size || ''}
+              onChange={handleSizeChange}
+              placeholder="e.g. 1024x1024"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none text-slate-200 placeholder-slate-700 transition-colors"
+            />
+          </div>
         </div>
-      )}
+
+        {/* Right Column: Image Reference Upload */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
+              <ImageIcon size={12} />
+              <span>Reference Images (Upload)</span>
+            </label>
+            {/* Show error small if exists */}
+            {uploadError && (
+              <span className="text-[10px] text-red-400 flex items-center gap-1">
+                <AlertTriangle size={10} />
+                Failed
+              </span>
+            )}
+          </div>
+          
+          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3 min-h-[160px]">
+            
+             {/* Image Grid */}
+             {currentImages.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {currentImages.map((imgUrl, idx) => (
+                    <div key={idx} className="relative group w-20 h-20 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden shadow-sm">
+                      <img src={imgUrl} alt={`ref-${idx}`} className="w-full h-full object-cover" />
+                      <button 
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-red-500/90 text-white rounded-full p-0.5 transition-colors backdrop-blur-sm"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* Small Upload Button (Append) */}
+                  <label className="flex flex-col items-center justify-center w-20 h-20 bg-slate-900/50 border border-slate-800 border-dashed rounded-lg hover:bg-slate-800 hover:border-cyan-500/50 hover:text-cyan-400 transition-all cursor-pointer">
+                    {isUploading ? (
+                      <Loader2 size={16} className="animate-spin text-cyan-500" />
+                    ) : (
+                      <Plus size={20} className="text-slate-500" />
+                    )}
+                    <input 
+                      ref={fileInputRef}
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                    />
+                  </label>
+                </div>
+             ) : (
+                /* Empty State / Big Upload Box */
+                <label className={`
+                  flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-300
+                  ${uploadError ? 'border-red-500/30 bg-red-950/10' : 'border-slate-800 hover:border-slate-700 hover:bg-slate-900'}
+                `}>
+                  {isUploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 size={24} className="text-cyan-500 animate-spin" />
+                      <span className="text-xs text-slate-400">Uploading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-2 bg-slate-800/50 rounded-full mb-2 group-hover:scale-110 transition-transform">
+                        <UploadCloud size={20} className={uploadError ? 'text-red-400' : 'text-slate-400'} />
+                      </div>
+                      <span className="text-xs text-slate-400">Click to upload reference image</span>
+                    </>
+                  )}
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageUpload}
+                    disabled={isUploading}
+                  />
+                </label>
+             )}
+             
+             {/* Upload Error Text Display (below grid) */}
+             {uploadError && !isUploading && (
+               <div className="mt-2 text-[10px] text-red-400 text-center px-2">
+                 {uploadError}
+               </div>
+             )}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };

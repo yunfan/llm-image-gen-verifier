@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Send, Sparkles, AlertCircle } from 'lucide-react';
 import ConfigPanel from './components/ConfigPanel';
 import AdvancedSettings from './components/AdvancedSettings';
 import ResultDisplay from './components/ResultDisplay';
 import { LoadingOverlay } from './components/LoadingOverlay';
-import { sendChatRequest } from './services/api';
-import { AppConfig, RequestStatus, ChatCompletionParams } from './types';
+import { sendImageGenRequest } from './services/api';
+import { AppConfig, RequestStatus, ImageGenerationParams, ApiResponse } from './types';
 
 function App() {
   // Initialize config from localStorage or defaults
@@ -21,30 +22,24 @@ function App() {
     return { apiKey: '', model: '' };
   });
 
-  // Persist config to localStorage whenever it changes
+  // Persist config to localStorage
   useEffect(() => {
     localStorage.setItem('llm_verifier_config', JSON.stringify(config));
   }, [config]);
 
-  // Collapse States
+  // Config Panel Toggle State
   const [configExpanded, setConfigExpanded] = useState(true);
-  const [advancedExpanded, setAdvancedExpanded] = useState(false);
   
-  // Default values based on common usage
-  const [advancedParams, setAdvancedParams] = useState<ChatCompletionParams>({
-    temperature: 0.7,
-    top_p: 1.0,
-    n: 1,
-    max_tokens: 2048,
-    presence_penalty: 0,
-    frequency_penalty: 0,
-    logit_bias: null,
-    user: ''
+  // Image Generation Parameters
+  const [imageParams, setImageParams] = useState<ImageGenerationParams>({
+    size: '',
+    aspect_ratio: '1:1',
+    image: [] // Initial empty array
   });
 
   const [prompt, setPrompt] = useState('');
   const [status, setStatus] = useState<RequestStatus>(RequestStatus.IDLE);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<ApiResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,18 +50,16 @@ function App() {
       return;
     }
 
-    // Collapse settings panels to make room for result
+    // Collapse Config Panel only
     setConfigExpanded(false);
-    setAdvancedExpanded(false);
 
     setStatus(RequestStatus.LOADING);
     setResult(null);
     setErrorMsg(null);
 
     try {
-      // Pass both basic config and advanced parameters
-      const responseContent = await sendChatRequest(config.apiKey, config.model, prompt, advancedParams);
-      setResult(responseContent);
+      const response = await sendImageGenRequest(config.apiKey, config.model, prompt, imageParams);
+      setResult(response);
       setStatus(RequestStatus.SUCCESS);
     } catch (err: any) {
       console.error(err);
@@ -90,8 +83,8 @@ function App() {
             LLM Image Gen <span className="text-cyan-400">Verifier</span>
           </h1>
           <p className="text-slate-400 max-w-lg mx-auto">
-            Test and verify image generation capabilities of OpenAI-compatible endpoints. 
-            Inputs are sent to <code className="text-xs bg-slate-900 px-1 py-0.5 rounded border border-slate-800">api.bltcy.ai</code>.
+            Test image generation endpoints. 
+            Inputs are sent to <code className="text-xs bg-slate-900 px-1 py-0.5 rounded border border-slate-800">api.bltcy.ai/v1/images/generations</code>.
           </p>
         </div>
 
@@ -103,17 +96,16 @@ function App() {
           onToggle={() => setConfigExpanded(!configExpanded)}
         />
 
-        {/* Prompt Input & Advanced Settings */}
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Advanced Parameters (Collapsible) */}
+          {/* Image Generation Settings (Always Visible) */}
           <AdvancedSettings 
-            params={advancedParams} 
-            setParams={setAdvancedParams} 
-            isOpen={advancedExpanded}
-            onToggle={() => setAdvancedExpanded(!advancedExpanded)}
+            apiKey={config.apiKey}
+            params={imageParams} 
+            setParams={setImageParams} 
           />
 
+          {/* Prompt Input */}
           <div className="relative">
             <div className="absolute top-3 left-3 text-slate-500">
               <span className="text-xs font-mono border border-slate-700 rounded px-1.5 py-0.5">Prompt</span>
@@ -121,12 +113,9 @@ function App() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the image you want to generate (e.g., 'A cyberpunk cat walking in the rain in Tokyo')"
-              className="w-full min-h-[160px] bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-4 pt-10 text-lg shadow-inner focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all resize-y placeholder-slate-600"
+              placeholder="Describe the image you want to generate..."
+              className="w-full min-h-[140px] bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-4 pt-10 text-lg shadow-inner focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all resize-y placeholder-slate-600"
             />
-            <div className="absolute bottom-3 right-3 text-xs text-slate-600 pointer-events-none">
-              Press Generate to send
-            </div>
           </div>
 
           {/* Error Message */}
@@ -153,14 +142,14 @@ function App() {
             `}
           >
             <Send size={20} />
-            <span>Generate</span>
+            <span>Generate Image</span>
           </button>
         </form>
 
         {/* Results Area */}
         {result && (
           <div className="pt-8 border-t border-slate-800">
-            <ResultDisplay rawContent={result} />
+            <ResultDisplay apiResponse={result} />
           </div>
         )}
       </div>

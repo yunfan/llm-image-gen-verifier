@@ -1,30 +1,22 @@
+
 export interface AppConfig {
   apiKey: string;
   model: string;
 }
 
-export interface ChatCompletionParams {
-  temperature?: number;
-  top_p?: number;
-  n?: number;
-  max_tokens?: number;
-  presence_penalty?: number;
-  frequency_penalty?: number;
-  logit_bias?: Record<string, number> | null;
-  user?: string;
+export interface ImageGenerationParams {
+  size?: string;
+  aspect_ratio?: string;
+  image?: string[]; // Changed to array of strings
 }
 
 export interface ApiResponse {
-  id: string;
-  choices: {
-    message: {
-      content: string;
-      role: string;
-    };
-  }[];
   created: number;
-  model: string;
-  object: string;
+  data: {
+    url?: string;
+    b64_json?: string;
+    revised_prompt?: string;
+  }[];
 }
 
 export interface ParsedContent {
