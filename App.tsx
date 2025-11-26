@@ -46,7 +46,7 @@ function App() {
     image_tail: '',
     negative_prompt: '',
     cfg_scale: 0.5,
-    mode: 'std',
+    mode: 'pro',
     duration: '5'
   });
 

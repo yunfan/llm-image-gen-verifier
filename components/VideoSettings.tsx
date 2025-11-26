@@ -2,7 +2,6 @@
 import React, { useState, useRef } from 'react';
 import { VideoGenerationParams } from '../types';
 import { Film, UploadCloud, Loader2, Image as ImageIcon, X, Sliders, Zap, Clock, AlertTriangle } from 'lucide-react';
-import { uploadImageFile } from '../services/api';
 
 interface VideoSettingsProps {
   apiKey: string;
@@ -18,30 +17,38 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
   const sourceInputRef = useRef<HTMLInputElement>(null);
   const tailInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (file: File, target: 'image' | 'image_tail') => {
-    if (!apiKey) {
-      setUploadError("请输入 API Key 以进行上传。");
-      if (sourceInputRef.current) sourceInputRef.current.value = '';
-      if (tailInputRef.current) tailInputRef.current.value = '';
-      return;
-    }
+  // Helper to convert file to Raw Base64 (stripping data:image/...;base64, prefix)
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Split at the comma to remove the Data URL scheme part
+        const rawBase64 = result.split(',')[1];
+        resolve(rawBase64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
+  const handleUpload = async (file: File, target: 'image' | 'image_tail') => {
     const setUploading = target === 'image' ? setIsUploadingSource : setIsUploadingTail;
     setUploading(true);
     setUploadError(null);
 
     try {
-      const uploadedUrl = await uploadImageFile(apiKey, file);
+      const base64String = await fileToBase64(file);
       setParams(prev => {
-        const newParams = { ...prev, [target]: uploadedUrl };
+        const newParams = { ...prev, [target]: base64String };
         // Constraint: If tail frame is present, duration must be 5s
-        if (target === 'image_tail' && uploadedUrl) {
+        if (target === 'image_tail' && base64String) {
           newParams.duration = '5';
         }
         return newParams;
       });
     } catch (err: any) {
-      setUploadError(err.message || "上传失败");
+      setUploadError(err.message || "文件处理失败");
     } finally {
       setUploading(false);
       if (sourceInputRef.current) sourceInputRef.current.value = '';
@@ -53,6 +60,13 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
     setParams(prev => ({ ...prev, [target]: '' }));
     setUploadError(null);
   };
+
+  // Helper to render preview (re-attaching prefix for browser display)
+  const getPreviewSrc = (rawBase64: string) => {
+    return `data:image/jpeg;base64,${rawBase64}`;
+  };
+
+  const isTailFrameSet = Boolean(params.image_tail && params.image_tail.length > 0);
 
   return (
     <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 space-y-8 animate-in fade-in duration-500">
@@ -72,7 +86,7 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
           
           {params.image ? (
             <div className="relative group w-full h-40 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-sm">
-              <img src={params.image} alt="Source" className="w-full h-full object-contain" />
+              <img src={getPreviewSrc(params.image)} alt="Source" className="w-full h-full object-contain" />
               <button 
                 type="button"
                 onClick={() => removeImage('image')}
@@ -89,12 +103,12 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
               {isUploadingSource ? (
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 size={24} className="text-violet-500 animate-spin" />
-                  <span className="text-xs text-slate-400">上传中...</span>
+                  <span className="text-xs text-slate-400">处理中...</span>
                 </div>
               ) : (
                 <>
                   <UploadCloud size={24} className="text-slate-500 mb-2" />
-                  <span className="text-xs text-slate-400">点击上传首帧</span>
+                  <span className="text-xs text-slate-400">点击选择图片 (本地 Base64)</span>
                 </>
               )}
               <input 
@@ -116,12 +130,12 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
               <ImageIcon size={12} />
               <span>尾帧图片 (可选)</span>
             </div>
-            {params.image_tail && <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={10}/> 锁定时长为5s</span>}
+            {isTailFrameSet && <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={10}/> 锁定时长为5s</span>}
           </label>
           
           {params.image_tail ? (
             <div className="relative group w-full h-40 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-sm">
-              <img src={params.image_tail} alt="Tail" className="w-full h-full object-contain" />
+              <img src={getPreviewSrc(params.image_tail)} alt="Tail" className="w-full h-full object-contain" />
               <button 
                 type="button"
                 onClick={() => removeImage('image_tail')}
@@ -138,12 +152,12 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
               {isUploadingTail ? (
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 size={24} className="text-violet-500 animate-spin" />
-                  <span className="text-xs text-slate-400">上传中...</span>
+                  <span className="text-xs text-slate-400">处理中...</span>
                 </div>
               ) : (
                 <>
                   <UploadCloud size={24} className="text-slate-500 mb-2" />
-                  <span className="text-xs text-slate-400">点击上传尾帧</span>
+                  <span className="text-xs text-slate-400">点击选择图片 (本地 Base64)</span>
                 </>
               )}
               <input 
@@ -224,10 +238,11 @@ const VideoSettings: React.FC<VideoSettingsProps> = ({ apiKey, params, setParams
               <button
                 type="button"
                 onClick={() => setParams(prev => ({ ...prev, duration: '10' }))}
-                disabled={!!params.image_tail}
+                disabled={isTailFrameSet}
+                title={isTailFrameSet ? "包含尾帧的视频仅支持5秒时长" : ""}
                 className={`flex-1 text-xs py-1.5 rounded transition-colors ${
-                  !!params.image_tail 
-                    ? 'text-slate-700 cursor-not-allowed' 
+                  isTailFrameSet 
+                    ? 'text-slate-700 cursor-not-allowed opacity-50' 
                     : params.duration === '10' ? 'bg-slate-800 text-violet-300 shadow-sm' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >

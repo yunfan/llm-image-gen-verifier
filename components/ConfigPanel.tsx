@@ -18,7 +18,7 @@ export const IMAGE_MODELS = [
 ];
 
 export const VIDEO_MODELS = [
-  'kling-video-v2.5-turbo',
+  'kling-v2-5-turbo',
   'kling-v1',
   'kling-v1-5',
   'kling-v1-6'
@@ -146,7 +146,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
               </p>
             ) : (
               <p>
-                <span className="font-semibold text-violet-500/80">视频接口:</span> <span className="font-mono text-slate-400 select-all">https://api.bltcy.ai/kling/v1/videos/image2video</span>
+                <span className="font-semibold text-violet-500/80">视频接口:</span> <span className="font-mono text-slate-400 select-all">https://api.uniapi.io/kling/v1/videos/image2video</span>
               </p>
             )}
           </div>

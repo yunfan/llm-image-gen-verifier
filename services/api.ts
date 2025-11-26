@@ -4,7 +4,7 @@ import { ApiResponse, ImageGenerationParams, VideoGenerationParams, KlingTaskRes
 const API_BASE = 'https://api.bltcy.ai/v1';
 const IMAGE_API_ENDPOINT = `${API_BASE}/images/generations`;
 const FILES_ENDPOINT = `${API_BASE}/files`;
-const VIDEO_API_BASE = `https://api.bltcy.ai/kling/v1/videos/image2video`;
+const VIDEO_API_BASE = `https://api.uniapi.io/kling/v1/videos/image2video`;
 
 export const uploadImageFile = async (apiKey: string, file: File): Promise<string> => {
   if (!apiKey) throw new Error('上传文件需要 API Key');
@@ -102,10 +102,10 @@ export const sendVideoGenRequest = async (
   if (!params?.image) throw new Error('图生视频需要源图片');
 
   // Construct payload specifically for Kling API
-  // https://api.bltcy.ai/kling/v1/videos/image2video
+  // https://api.uniapi.io/kling/v1/videos/image2video
   const payload: any = {
     model_name: model, // Specific mapping: model -> model_name
-    image: params.image,
+    image: params.image, // Now expects Base64 string from VideoSettings
   };
 
   // Optional parameters
@@ -118,7 +118,7 @@ export const sendVideoGenRequest = async (
 
   try {
     console.log("Sending Video Request to:", VIDEO_API_BASE);
-    console.log("Payload:", payload);
+    // console.log("Payload:", payload); // Avoid logging huge base64 strings
 
     const response = await fetch(VIDEO_API_BASE, {
       method: 'POST',
