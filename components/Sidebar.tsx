@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Image, Video, Sparkles } from 'lucide-react';
+import { Image, Video, Sparkles, ScanEye } from 'lucide-react';
 import { AppMode } from '../types';
 
 interface SidebarProps {
@@ -49,6 +49,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMode, setMode }) => {
           
           {currentMode === 'video' && (
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-violet-500 rounded-l-full"></div>
+          )}
+        </button>
+
+        <button
+          onClick={() => setMode('vision')}
+          className={`
+            flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all duration-300 w-full group relative
+            ${currentMode === 'vision' 
+              ? 'bg-slate-800 text-amber-400 shadow-lg shadow-amber-900/10' 
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+            }
+          `}
+        >
+          <ScanEye size={24} className={currentMode === 'vision' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-medium">读图理解</span>
+          
+          {currentMode === 'vision' && (
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-amber-500 rounded-l-full"></div>
           )}
         </button>
       </div>

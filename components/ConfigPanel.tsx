@@ -24,6 +24,14 @@ export const VIDEO_MODELS = [
   'kling-v1-6'
 ];
 
+export const VISION_MODELS = [
+  'gpt-4o',
+  'gpt-4o-mini',
+  'claude-sonnet-4-5-20250929',
+  'gemini-1.5-pro-latest',
+  'gpt-4-turbo'
+];
+
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded, onToggle, currentMode }) => {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -53,7 +61,28 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
     };
   }, []);
 
-  const suggestedModels = currentMode === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
+  let suggestedModels: string[] = [];
+  let themeColor = '';
+  let apiEndpoint = '';
+
+  switch (currentMode) {
+    case 'video':
+      suggestedModels = VIDEO_MODELS;
+      themeColor = 'text-violet-400';
+      apiEndpoint = 'https://api.uniapi.io/kling/v1/videos/image2video';
+      break;
+    case 'vision':
+      suggestedModels = VISION_MODELS;
+      themeColor = 'text-amber-400';
+      apiEndpoint = 'https://api.bltcy.ai/v1/chat/completions';
+      break;
+    case 'image':
+    default:
+      suggestedModels = IMAGE_MODELS;
+      themeColor = 'text-cyan-400';
+      apiEndpoint = 'https://api.bltcy.ai/v1/images/generations';
+      break;
+  }
 
   return (
     <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl shadow-xl overflow-visible transition-all duration-300">
@@ -62,7 +91,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
         onClick={onToggle}
         className="w-full flex items-center justify-between p-6 hover:bg-slate-800/30 transition-colors text-left"
       >
-        <div className={`flex items-center gap-2 font-semibold text-lg ${currentMode === 'image' ? 'text-cyan-400' : 'text-violet-400'}`}>
+        <div className={`flex items-center gap-2 font-semibold text-lg ${themeColor}`}>
           <Settings size={20} />
           <h2>接口配置</h2>
         </div>
@@ -140,15 +169,9 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, isExpanded
             </div>
           </div>
           <div className="mt-6 space-y-2 text-xs text-slate-500 border-t border-slate-800/50 pt-4">
-            {currentMode === 'image' ? (
-              <p>
-                <span className="font-semibold text-cyan-500/80">图片接口:</span> <span className="font-mono text-slate-400 select-all">https://api.bltcy.ai/v1/images/generations</span>
-              </p>
-            ) : (
-              <p>
-                <span className="font-semibold text-violet-500/80">视频接口:</span> <span className="font-mono text-slate-400 select-all">https://api.uniapi.io/kling/v1/videos/image2video</span>
-              </p>
-            )}
+            <p>
+              <span className={`font-semibold ${themeColor} opacity-80`}>接口地址:</span> <span className="font-mono text-slate-400 select-all">{apiEndpoint}</span>
+            </p>
           </div>
         </div>
       )}

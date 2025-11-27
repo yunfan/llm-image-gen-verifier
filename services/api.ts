@@ -1,8 +1,9 @@
 
-import { ApiResponse, ImageGenerationParams, VideoGenerationParams, KlingTaskResponse } from '../types';
+import { ApiResponse, ImageGenerationParams, VideoGenerationParams, KlingTaskResponse, VisionAnalysisParams } from '../types';
 
 const API_BASE = 'https://api.bltcy.ai/v1';
 const IMAGE_API_ENDPOINT = `${API_BASE}/images/generations`;
+const CHAT_API_ENDPOINT = `${API_BASE}/chat/completions`;
 const FILES_ENDPOINT = `${API_BASE}/files`;
 const VIDEO_API_BASE = `https://api.uniapi.io/kling/v1/videos/image2video`;
 
@@ -118,8 +119,7 @@ export const sendVideoGenRequest = async (
 
   try {
     console.log("Sending Video Request to:", VIDEO_API_BASE);
-    // console.log("Payload:", payload); // Avoid logging huge base64 strings
-
+    
     const response = await fetch(VIDEO_API_BASE, {
       method: 'POST',
       headers: {
@@ -172,6 +172,84 @@ export const getKlingVideoStatus = async (
     return await response.json();
   } catch (error) {
     console.error('Get Task Status failed:', error);
+    throw error;
+  }
+};
+
+export const sendVisionRequest = async (
+  apiKey: string,
+  model: string,
+  prompt: string,
+  params: VisionAnalysisParams
+): Promise<ApiResponse> => {
+  if (!apiKey) throw new Error('请输入 API Key');
+  if (!model) throw new Error('请输入模型名称');
+  if (!prompt && params.images.length === 0) throw new Error('请输入提示词或上传图片');
+
+  // Construct multimodal message content
+  const content: any[] = [];
+  
+  // Add text prompt
+  if (prompt) {
+    content.push({ type: "text", text: prompt });
+  } else {
+    // Default prompt if user only uploads images (optional behavior, but API usually requires some text or explicit instruction)
+    content.push({ type: "text", text: "请分析这些图片。" });
+  }
+
+  // Add images
+  if (params.images && params.images.length > 0) {
+    params.images.forEach(imgDataUrl => {
+      content.push({
+        type: "image_url",
+        image_url: {
+          url: imgDataUrl // Expecting data:image/jpeg;base64,... format
+        }
+      });
+    });
+  }
+
+  const payload = {
+    model: model,
+    messages: [
+      {
+        role: "user",
+        content: content
+      }
+    ],
+    max_tokens: 4096 // Reasonable default for analysis
+  };
+
+  try {
+    const response = await fetch(CHAT_API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || `API 错误: ${response.status} ${response.statusText}`
+      );
+    }
+    
+    const json = await response.json();
+    
+    // Transform OpenAI Chat Completion response to our generic ApiResponse format
+    // Extract the content from the first choice
+    const messageContent = json.choices?.[0]?.message?.content || "";
+    
+    return {
+      created: json.created || Date.now(),
+      data: [{ revised_prompt: messageContent }] // Wrap in array to match ResultDisplay expectations
+    };
+
+  } catch (error) {
+    console.error('Vision API Request failed:', error);
     throw error;
   }
 };

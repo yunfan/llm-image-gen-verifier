@@ -19,6 +19,10 @@ export interface VideoGenerationParams {
   duration?: '5' | '10'; // Optional: Duration in seconds
 }
 
+export interface VisionAnalysisParams {
+  images: string[]; // Array of Data URLs (base64 with prefix)
+}
+
 export interface ApiResponse {
   created: number;
   data: any; // Changed to 'any' to handle both Array and Object responses from third-party APIs
@@ -38,7 +42,7 @@ export enum RequestStatus {
   ERROR = 'ERROR',
 }
 
-export type AppMode = 'image' | 'video';
+export type AppMode = 'image' | 'video' | 'vision';
 
 export interface KlingTaskResponse {
   code: number;
